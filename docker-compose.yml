@@ -1,0 +1,45 @@
+# docker-compose.yml
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./logs:/var/log/nginx
+    depends_on:
+      - app_blue
+      - app_green
+    environment:
+      - ACTIVE_POOL=${ACTIVE_POOL:-blue}
+
+  app_blue:
+    image: ${BLUE_IMAGE:-yimikaade/wonderful:devops-stage-two}
+    ports:
+      - "8081:3000"
+    environment:
+      - PORT=3000
+      - RELEASE_ID=${RELEASE_ID_BLUE:-blue-release-1.0.0}
+      - APP_POOL=blue
+
+  app_green:
+    image: ${GREEN_IMAGE:-yimikaade/wonderful:devops-stage-two}
+    ports:
+      - "8082:3000"
+    environment:
+      - PORT=3000
+      - RELEASE_ID=${RELEASE_ID_GREEN:-green-release-1.0.0}
+      - APP_POOL=green
+
+  alert_watcher:
+    build: ./watcher
+    volumes:
+      - ./logs:/var/log/nginx
+    environment:
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - ERROR_RATE_THRESHOLD=${ERROR_RATE_THRESHOLD:-2}
+      - WINDOW_SIZE=${WINDOW_SIZE:-200}
+      - ALERT_COOLDOWN_SEC=${ALERT_COOLDOWN_SEC:-300}
+      - MAINTENANCE_MODE=${MAINTENANCE_MODE:-false}
+    depends_on:
+      - nginx
